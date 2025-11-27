@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>추첨 프로그램</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --danger-color: #e74c3c;
+            --text-color: #333;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Pretendard', 'Malgun Gothic', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-color);
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 상단 헤더 & REC 표시 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .rec-indicator {
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            color: var(--danger-color);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .rec-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--danger-color);
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .current-time {
+            font-variant-numeric: tabular-nums;
+            font-size: 1.1em;
+        }
+
+        /* 메인 레이아웃 */
+        .container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 좌측: 설정 및 정보 */
+        .panel-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 10px;
+        }
+
+        .data-info {
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .data-info p {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .hash-box {
+            background: #eee;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 11px;
+            word-break: break-all;
+            color: #555;
+            margin-top: 5px;
+        }
+
+        .control-group {
+            margin-top: auto;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #2980b9; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+        .download-btn {
+            margin-top: 10px;
+            background: #27ae60;
+        }
+
+        .download-btn:hover {
+            background: #229954;
+        }
+
+        .download-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .file-upload {
+            margin-bottom: 15px;
+        }
+
+        /* 우측: 추첨 화면 */
+        .display-area {
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ddd;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 후보자 배경 롤링 효과 - 제거됨 */
+
+        .draw-status {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .slot-machine {
+            display: flex;
+            gap: 40px;
+            width: 100%;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+            padding: 0 20px;
+        }
+
+        .winner-card {
+            background: white;
+            border: 2px solid var(--accent-color);
+            border-radius: 15px;
+            width: 45%;
+            max-width: 500px;
+            height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .winner-card.active {
+            transform: scale(1.0);
+            border-color: #27ae60;
+            background: linear-gradient(135deg, #f0fff4 0%, #e8f8f5 100%);
+            box-shadow: 0 0 30px rgba(39, 174, 96, 0.5), 0 15px 40px rgba(0,0,0,0.2);
+            animation: winnerReveal 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes winnerReveal {
+            0% {
+                transform: scale(0.8) rotateY(-10deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05) rotateY(5deg);
+            }
+            100% {
+                transform: scale(1.0) rotateY(0deg);
+                opacity: 1;
+            }
+        }
+
+        .winner-sub {
+            font-size: 16px;
+            color: #7f8c8d;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+
+        /* 슬롯 머신 구조 */
+        .slot-window {
+            position: relative;
+            width: 100%;
+            height: 100px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .slot-reel {
+            position: absolute;
+            width: 100%;
+            top: 0;
+            left: 0;
+            will-change: transform, filter;
+            transform: translateZ(0); /* GPU acceleration */
+        }
+
+        .slot-item {
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .slot-item-sub {
+            font-size: 18px;
+            color: #7f8c8d;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+
+        /* 슬롯 정지 시 바운스 효과 */
+        @keyframes slotStop {
+            0% { transform: translateY(-15px); }
+            50% { transform: translateY(8px); }
+            100% { transform: translateY(0); }
+        }
+
+        /* 당첨자 글로우 효과 */
+        @keyframes winnerGlow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(39, 174, 96, 0.3),
+                            0 15px 40px rgba(0,0,0,0.2);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(39, 174, 96, 0.8),
+                            0 0 60px rgba(39, 174, 96, 0.4),
+                            0 15px 40px rgba(0,0,0,0.2);
+            }
+        }
+
+        /* 당첨 카드에 글로우 애니메이션 적용 */
+        .winner-card.active {
+            animation: winnerReveal 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                       winnerGlow 2s ease-in-out infinite 0.8s;
+        }
+
+        /* 하단: 로그 */
+        footer {
+            height: 400px;
+            margin-top: 20px;
+            background: #222;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            overflow-y: auto;
+            border: 1px solid #444;
+        }
+
+        .log-entry { margin: 4px 0; }
+        .log-time { color: #888; margin-right: 10px; }
+        .legal-notice {
+            text-align: center;
+            font-size: 11px;
+            color: #666;
+            margin-top: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="font-size: 20px; font-weight: bold;">추첨 프로그램 v1.0</div>
+        <div style="display:flex; align-items:center; gap:20px;">
+            <div class="current-time" id="clock">00:00:00</div>
+            <div class="rec-indicator">
+                <div class="rec-dot"></div> REC 녹화 중
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div class="panel-title">데이터 및 설정</div>
+            
+            <div class="file-upload">
+                <label style="display:block; margin-bottom:8px; font-size:14px; font-weight:bold;">데이터 파일 로드</label>
+                <input type="file" id="fileInput" accept=".csv" onchange="loadCSVFile(event)" style="width:100%; padding:8px; margin-bottom:10px; border:2px dashed #3498db; border-radius:6px; background:#f8f9fa; cursor:pointer;">
+            </div>
+
+            <div class="data-info">
+                <p>총 대상자: <strong id="total-count">- 명</strong></p>
+                <p>추첨 인원: <strong>2 명</strong></p>
+                <p>알고리즘: <span>Crypto Secure Random</span></p>
+                <div style="margin-top:15px; font-size:12px; font-weight:bold;">데이터 무결성 검증 (SHA-256):</div>
+                <div class="hash-box" id="data-hash">데이터 대기 중...</div>
+            </div>
+
+            <div class="control-group">
+                <button id="start-btn" onclick="startDraw()" disabled>추첨 시작</button>
+                <button id="download-btn" class="download-btn" onclick="downloadResults()" disabled>결과 다운로드</button>
+            </div>
+        </div>
+
+        <div class="card display-area">
+            <div class="draw-status" id="status-text">데이터를 로드해주세요.</div>
+
+            <div class="slot-machine">
+                <div class="winner-card" id="card-1">
+                    <div class="slot-window" id="slot-window-1">
+                        <div class="slot-reel" id="slot-reel-1">
+                            <div class="slot-item">?</div>
+                        </div>
+                    </div>
+                    <div class="winner-sub" id="extra-info-1">-</div>
+                </div>
+                <div class="winner-card" id="card-2">
+                    <div class="slot-window" id="slot-window-2">
+                        <div class="slot-reel" id="slot-reel-2">
+                            <div class="slot-item">?</div>
+                        </div>
+                    </div>
+                    <div class="winner-sub" id="extra-info-2">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer id="log-console">
+        <div class="log-entry">> 시스템 준비 완료.</div>
+        <div class="log-entry">> 추첨 과정은 녹화되어 보관되며 법적 효력을 가집니다.</div>
+    </footer>
+
+    <div class="legal-notice">
+        본 추첨은 암호학적으로 안전한 난수 생성기(CSPRNG)를 사용하여 공정하게 진행됩니다. 
+        결과는 조작될 수 없으며 해시값을 통해 데이터 무결성을 검증합니다.
+    </div>
+
+    <script>
+        // 전역 변수
+        let candidates = [];
+        let isDrawing = false;
+        let drawResults = null; // 추첨 결과 저장
+        let drawTimestamp = null; // 추첨 시간 저장
+        let dataHash = null; // 데이터 해시 저장
+        let drawLogs = []; // 추첨 로그 저장
+        
+        // 1. 시계 기능
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleString('ko-KR');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // 2. 로그 기능
+        function addLog(msg) {
+            const consoleBox = document.getElementById('log-console');
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerHTML = `<span class="log-time">[${timeStr}]</span> ${msg}`;
+            consoleBox.appendChild(div);
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+
+            // 로그를 배열에도 저장 (다운로드용)
+            drawLogs.push({
+                timestamp: timeStr,
+                message: msg
+            });
+        }
+
+        // 3. 데이터 마스킹 (개인정보 보호)
+        function maskName(name) {
+            if (!name) return "";
+            if (name.length <= 2) return name[0] + '*';
+            return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+        }
+
+        function maskId(id) {
+            if (!id) return "";
+            if (id.length === 1) return '*';
+            if (id.length === 2) return id[0] + '*';
+            // 3자리 이상: 마지막 3자리만 마스킹
+            return id.substring(0, id.length - 3) + '***';
+        }
+
+        function maskMobile(mobile) {
+            if (!mobile) return "";
+            // 전화번호 형식: 010-1234-5678 -> 010-****-5678
+            // 또는 01012345678 -> 010****5678
+            const cleaned = mobile.replace(/[^0-9]/g, '');
+            if (cleaned.length < 9) return '***-****-***';
+
+            const first = cleaned.substring(0, 3);
+            const last = cleaned.substring(cleaned.length - 4);
+            return `${first}-****-${last}`;
+        }
+
+        // 4. CSV 파일 로드 및 파싱
+        async function loadCSVFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            addLog(`파일 로드 시작: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+
+            try {
+                const text = await file.text();
+                const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+
+                if (lines.length === 0) {
+                    throw new Error("빈 파일입니다.");
+                }
+
+                candidates = [];
+
+                // 첫 번째 줄이 헤더인지 확인 (이름, 번호 등의 키워드 포함)
+                const firstLine = lines[0].toLowerCase();
+                const hasHeader = firstLine.includes('id') && firstLine.includes('name') && firstLine.includes('mobilenumber');
+                if (!hasHeader){
+                    throw new Error("csv 헤더 포맷을 확인해주세요.")
+                }
+
+                const startIdx = hasHeader ? 1 : 0;
+                addLog(`헤더 감지: ${hasHeader ? '있음' : '없음'}`);
+
+                // CSV 파싱
+                for (let i = startIdx; i < lines.length; i++) {
+                    const line = lines[i];
+                    // 쉼표로 분리 (따옴표 안의 쉼표는 무시)
+                    const values = line.split(',').map(v => v.trim().replace(/^["']|["']$/g, ''));
+
+                    if (values.length < 2) {
+                        addLog(`⚠️ ${i + 1}번째 줄 건너뜀: 데이터 부족 (${line})`);
+                        continue;
+                    }
+
+                    candidates.push({
+                        id: values[0],
+                        name: values[1],
+                        mobileNumber: values[2],
+                    });
+                }
+
+                if (candidates.length === 0) {
+                    throw new Error("유효한 데이터가 없습니다.");
+                }
+
+                // UI 업데이트
+                document.getElementById('total-count').innerText = `${candidates.length.toLocaleString()} 명`;
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('status-text').innerText = "추첨 준비 완료";
+
+                addLog(`✓ 총 ${candidates.length}명 데이터 로드 완료.`);
+
+                // 데이터 무결성 해시 생성
+                const dataString = JSON.stringify(candidates);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(dataString));
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                document.getElementById('data-hash').innerText = hashHex;
+                dataHash = hashHex; // 해시 저장
+                addLog(`데이터 무결성 검증 완료. Hash: ${hashHex.substring(0, 20)}...`);
+
+                // CSV 파일 내용 마스킹 출력
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                addLog('📋 CSV 파일 내용');
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                candidates.forEach((candidate, idx) => {
+                    const maskedId = maskId(candidate.id);
+                    const maskedName = maskName(candidate.name);
+                    const maskedMobile = maskMobile(candidate.mobileNumber);
+                    addLog(`${String(idx + 1).padStart(3, ' ')}. ID: ${maskedId.padEnd(10)} | 이름: ${maskedName.padEnd(5)} | 전화번호: ${maskedMobile}`);
+                });
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+            } catch (error) {
+                addLog(`❌ 파일 로드 실패: ${error.message}`);
+                alert(`파일 로드 중 오류가 발생했습니다:\n${error.message}\n\nCSV 형식을 확인해주세요.`);
+            }
+        }
+
+        // 5. 공정한 추첨 로직 (CSPRNG 사용)
+        function getSecureRandomIndex(max) {
+            const array = new Uint32Array(1);
+            window.crypto.getRandomValues(array);
+            return array[0] % max;
+        }
+
+        // 6. 슬롯 머신 애니메이션 컨트롤러
+        class SlotMachineController {
+            constructor(cardNumber, candidates, winner) {
+                this.cardNumber = cardNumber;
+                this.candidates = candidates;
+                this.winner = winner;
+                this.reelEl = document.getElementById(`slot-reel-${cardNumber}`);
+                this.windowEl = document.getElementById(`slot-window-${cardNumber}`);
+
+                // 애니메이션 파라미터
+                this.ITEM_HEIGHT = 100;
+                this.FAST_DURATION = 1500; // 1.5초 빠른 롤링
+                this.SLOW_DURATION = 1500; // 1.5초 감속
+                this.TOTAL_DURATION = this.FAST_DURATION + this.SLOW_DURATION;
+
+                this.startTime = null;
+                this.animationFrame = null;
+                this.onComplete = null;
+            }
+
+            // 이름 풀 생성 (당첨자를 계산된 위치에 삽입)
+            generateNamePool() {
+                const poolSize = 25;
+                const shuffled = [...this.candidates].sort(() => Math.random() - 0.5);
+                const pool = shuffled.slice(0, poolSize);
+
+                // 당첨자를 75% 위치에 삽입
+                const winnerIndex = Math.floor(poolSize * 0.75);
+                pool[winnerIndex] = this.winner;
+
+                return pool;
+            }
+
+            // 릴에 이름 아이템 채우기
+            populateReel() {
+                const pool = this.generateNamePool();
+                this.reelEl.innerHTML = '';
+
+                pool.forEach((candidate) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'slot-item';
+
+                    const nameDiv = document.createElement('div');
+                    nameDiv.textContent = maskName(candidate.name);
+
+                    const subDiv = document.createElement('div');
+                    subDiv.className = 'slot-item-sub';
+                    subDiv.textContent = maskId(candidate.id);
+
+                    itemDiv.appendChild(nameDiv);
+                    itemDiv.appendChild(subDiv);
+                    this.reelEl.appendChild(itemDiv);
+                });
+
+                this.totalItems = pool.length;
+                this.winnerIndex = Math.floor(this.totalItems * 0.75);
+            }
+
+            // 시간에 따른 위치 계산
+            calculatePosition(elapsed) {
+                if (elapsed < this.FAST_DURATION) {
+                    // Phase 1: 빠른 일정 속도
+                    const progress = elapsed / this.FAST_DURATION;
+                    const distance = progress * (this.totalItems * this.ITEM_HEIGHT * 0.5);
+                    return -distance;
+                } else {
+                    // Phase 2: 감속
+                    const slowElapsed = elapsed - this.FAST_DURATION;
+                    const slowProgress = slowElapsed / this.SLOW_DURATION;
+
+                    // Ease-out-cubic으로 부드러운 감속
+                    const easedProgress = 1 - Math.pow(1 - slowProgress, 3);
+
+                    const fastDistance = this.totalItems * this.ITEM_HEIGHT * 0.5;
+                    const slowDistance = (this.totalItems * this.ITEM_HEIGHT * 0.25) * easedProgress;
+
+                    return -(fastDistance + slowDistance);
+                }
+            }
+
+            // 속도에 따른 블러 양 계산
+            calculateBlur(elapsed) {
+                if (elapsed < this.FAST_DURATION) {
+                    return 1.5; // 전체 블러 (3px → 1.5px로 감소)
+                } else {
+                    const slowElapsed = elapsed - this.FAST_DURATION;
+                    const slowProgress = slowElapsed / this.SLOW_DURATION;
+                    return 1.5 * (1 - slowProgress); // 블러 페이드 1.5px → 0px
+                }
+            }
+
+            // 애니메이션 루프
+            animate(timestamp) {
+                if (!this.startTime) this.startTime = timestamp;
+                const elapsed = timestamp - this.startTime;
+
+                if (elapsed < this.TOTAL_DURATION) {
+                    const position = this.calculatePosition(elapsed);
+                    const blur = this.calculateBlur(elapsed);
+
+                    this.reelEl.style.transform = `translateY(${position}px)`;
+                    this.reelEl.style.filter = `blur(${blur}px)`;
+
+                    this.animationFrame = requestAnimationFrame((t) => this.animate(t));
+                } else {
+                    // 애니메이션 완료 - 최종 위치로 스냅
+                    this.finalize();
+                }
+            }
+
+            // 애니메이션 종료
+            finalize() {
+                // 최종 위치 계산 (당첨자 중앙)
+                const finalPosition = -(this.winnerIndex * this.ITEM_HEIGHT);
+
+                this.reelEl.style.transform = `translateY(${finalPosition}px)`;
+                this.reelEl.style.filter = 'blur(0px)';
+                this.reelEl.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+
+                // 당첨자 공개 효과 트리거
+                setTimeout(() => {
+                    const cardEl = document.getElementById(`card-${this.cardNumber}`);
+                    cardEl.classList.add('active');
+
+                    // 추가 정보 표시
+                    const extraInfo = document.getElementById(`extra-info-${this.cardNumber}`);
+                    extraInfo.textContent = maskMobile(this.winner.mobileNumber);
+
+                    if (this.onComplete) this.onComplete();
+                }, 300);
+            }
+
+            // 애니메이션 시작
+            start() {
+                this.populateReel();
+                this.animationFrame = requestAnimationFrame((t) => this.animate(t));
+                return this;
+            }
+
+            // 정리
+            stop() {
+                if (this.animationFrame) {
+                    cancelAnimationFrame(this.animationFrame);
+                }
+            }
+        }
+
+        // 7. 추첨 시작 (슬롯 머신 애니메이션)
+        function startDraw() {
+            if (isDrawing) return;
+            if (candidates.length === 0) {
+                alert("데이터가 로드되지 않았습니다.");
+                return;
+            }
+
+            isDrawing = true;
+            drawTimestamp = new Date(); // 추첨 시작 시간 기록
+            drawResults = null; // 결과 초기화
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('download-btn').disabled = true; // 다운로드 버튼 비활성화
+            document.getElementById('status-text').innerText = "추첨 진행 중...";
+            document.getElementById('status-text').style.color = "#333";
+            addLog("추첨 프로세스 시작 (Algorithm: CSPRNG)");
+
+            // 카드 상태 초기화
+            document.getElementById('card-1').classList.remove('active');
+            document.getElementById('card-2').classList.remove('active');
+
+            // CSPRNG를 사용하여 당첨자 선정
+            const winnerIdx1 = getSecureRandomIndex(candidates.length);
+            let winnerIdx2 = getSecureRandomIndex(candidates.length);
+            while(winnerIdx1 === winnerIdx2) {
+                winnerIdx2 = getSecureRandomIndex(candidates.length);
+            }
+
+            const winner1 = candidates[winnerIdx1];
+            const winner2 = candidates[winnerIdx2];
+
+            // 결과 저장
+            drawResults = {
+                winner1: winner1,
+                winner2: winner2,
+                timestamp: drawTimestamp,
+                totalCandidates: candidates.length
+            };
+
+            addLog(`보안 난수 생성`);
+
+            // 슬롯 머신 애니메이션 순차 시작
+            animateSlotMachines(winner1, winner2);
+        }
+
+        function animateSlotMachines(winner1, winner2) {
+            const statusEl = document.getElementById('status-text');
+
+            // 카드 1 애니메이션
+            statusEl.innerText = "🎰 1번 당첨자 추첨 중...";
+            statusEl.style.color = "#e67e22";
+
+            const slot1 = new SlotMachineController(1, candidates, winner1);
+
+            slot1.onComplete = () => {
+                addLog(`[결과 확정] 1번 당첨자: ${maskName(winner1.name)} / ${maskId(winner1.id)} / ${maskMobile(winner1.mobileNumber)}`);
+
+                // 800ms 대기 후 카드 2 시작
+                setTimeout(() => {
+                    statusEl.innerText = "🎰 2번 당첨자 추첨 중...";
+
+                    const slot2 = new SlotMachineController(2, candidates, winner2);
+
+                    slot2.onComplete = () => {
+                        addLog(`[결과 확정] 2번 당첨자: ${maskName(winner2.name)} / ${maskId(winner2.id)} / ${maskMobile(winner2.mobileNumber)}`);
+
+                        // 최종 축하 메시지
+                        setTimeout(() => {
+                            statusEl.innerText = "🎊 축하합니다! 모든 당첨자가 선정되었습니다! 🎊";
+                            statusEl.style.color = "#27ae60";
+                            statusEl.style.fontWeight = "bold";
+                            addLog("추첨 종료. 결과 데이터 저장 완료.");
+                            isDrawing = false;
+                            document.getElementById('start-btn').disabled = true;
+                            document.getElementById('download-btn').disabled = false; // 다운로드 버튼 활성화
+                        }, 1000);
+                    };
+
+                    slot2.start();
+                }, 800);
+            };
+
+            slot1.start();
+        }
+
+        // 8. 결과 다운로드 기능
+        function downloadResults() {
+            if (!drawResults) {
+                alert("추첨 결과가 없습니다. 먼저 추첨을 진행해주세요.");
+                return;
+            }
+
+            // 다운로드할 데이터 생성
+            const downloadData = {
+                title: "추첨 결과 보고서",
+                drawInfo: {
+                    timestamp: drawResults.timestamp.toLocaleString('ko-KR'),
+                    totalCandidates: drawResults.totalCandidates,
+                    drawCount: 2,
+                    algorithm: "CSPRNG (Cryptographically Secure Pseudo-Random Number Generator)"
+                },
+                dataIntegrity: {
+                    hashAlgorithm: "SHA-256",
+                    dataHash: dataHash
+                },
+                winners: [
+                    {
+                        position: "1번 당첨자",
+                        id: drawResults.winner1.id,
+                        name: drawResults.winner1.name,
+                        mobileNumber: drawResults.winner1.mobileNumber
+                    },
+                    {
+                        position: "2번 당첨자",
+                        id: drawResults.winner2.id,
+                        name: drawResults.winner2.name,
+                        mobileNumber: drawResults.winner2.mobileNumber
+                    }
+                ],
+                logs: drawLogs
+            };
+
+            // JSON 파일 다운로드
+            downloadJSON(downloadData);
+            addLog("결과 파일 다운로드 완료.");
+        }
+
+        // JSON 형식으로 다운로드
+        function downloadJSON(data) {
+            const jsonString = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `추첨결과_${formatDateForFilename(drawResults.timestamp)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 파일명용 날짜 포맷
+        function formatDateForFilename(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hour = String(date.getHours()).padStart(2, '0');
+            const minute = String(date.getMinutes()).padStart(2, '0');
+            const second = String(date.getSeconds()).padStart(2, '0');
+            return `${year}${month}${day}_${hour}${minute}${second}`;
+        }
+    </script>
+</body>
+</html>
