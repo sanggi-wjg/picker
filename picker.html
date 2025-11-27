@@ -48,6 +48,22 @@
             padding: 5px 12px;
             border-radius: 20px;
             font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .rec-indicator:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .rec-indicator.inactive {
+            color: #95a5a6;
+        }
+
+        .rec-indicator.inactive .rec-dot {
+            background-color: #95a5a6;
+            animation: none;
         }
 
         .rec-dot {
@@ -148,6 +164,19 @@
         }
 
         .download-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .download-video-btn {
+            background: #8e44ad;
+        }
+
+        .download-video-btn:hover {
+            background: #7d3c98;
+        }
+
+        .download-video-btn:disabled {
             background: #bdc3c7;
             cursor: not-allowed;
         }
@@ -327,8 +356,8 @@
         <div style="font-size: 20px; font-weight: bold;">추첨 프로그램 v1.0</div>
         <div style="display:flex; align-items:center; gap:20px;">
             <div class="current-time" id="clock">00:00:00</div>
-            <div class="rec-indicator">
-                <div class="rec-dot"></div> REC 녹화 중
+            <div class="rec-indicator inactive" id="rec-indicator" onclick="toggleRecording()" title="클릭하여 화면 녹화 시작/중지">
+                <div class="rec-dot"></div> <span id="rec-status">녹화 대기</span>
             </div>
         </div>
     </header>
@@ -351,8 +380,9 @@
             </div>
 
             <div class="control-group">
-                <button id="start-btn" onclick="startDraw()" disabled>추첨 시작</button>
+                <button id="start-btn" onclick="startDrawWithRecording()" disabled>추첨 시작 (자동 녹화)</button>
                 <button id="download-btn" class="download-btn" onclick="downloadResults()" disabled>결과 다운로드</button>
+                <button id="download-video-btn" class="download-btn download-video-btn" onclick="downloadRecording()" disabled>녹화본 다운로드</button>
             </div>
         </div>
 
@@ -398,6 +428,12 @@
         let drawTimestamp = null; // 추첨 시간 저장
         let dataHash = null; // 데이터 해시 저장
         let drawLogs = []; // 추첨 로그 저장
+
+        // 녹화 관련 변수
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+        let recordingStream = null;
         
         // 1. 시계 기능
         function updateClock() {
@@ -840,6 +876,140 @@
             const minute = String(date.getMinutes()).padStart(2, '0');
             const second = String(date.getSeconds()).padStart(2, '0');
             return `${year}${month}${day}_${hour}${minute}${second}`;
+        }
+
+        // 9. 화면 녹화 기능
+        async function startRecording() {
+            try {
+                // 화면 캡처 요청
+                recordingStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        mediaSource: 'screen',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: false
+                });
+
+                // MediaRecorder 생성
+                const options = { mimeType: 'video/webm; codecs=vp9' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'video/webm';
+                }
+
+                mediaRecorder = new MediaRecorder(recordingStream, options);
+                recordedChunks = [];
+
+                // 데이터 수신 이벤트
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                // 녹화 종료 이벤트
+                mediaRecorder.onstop = () => {
+                    addLog('녹화가 종료되었습니다. 녹화본을 다운로드할 수 있습니다.');
+                    document.getElementById('download-video-btn').disabled = false;
+                };
+
+                // 녹화 시작
+                mediaRecorder.start(1000); // 1초마다 데이터 수집
+                isRecording = true;
+
+                // UI 업데이트
+                updateRecordingUI();
+                addLog('화면 녹화가 시작되었습니다.');
+
+                // 사용자가 화면 공유를 중지하면 녹화도 중지
+                recordingStream.getVideoTracks()[0].onended = () => {
+                    if (isRecording) {
+                        stopRecording();
+                    }
+                };
+
+            } catch (error) {
+                console.error('녹화 시작 실패:', error);
+                addLog(`❌ 녹화 시작 실패: ${error.message}`);
+                alert('화면 녹화를 시작할 수 없습니다.\n브라우저에서 화면 공유 권한을 허용해주세요.');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                isRecording = false;
+
+                // 스트림 정리
+                if (recordingStream) {
+                    recordingStream.getTracks().forEach(track => track.stop());
+                    recordingStream = null;
+                }
+
+                updateRecordingUI();
+                addLog('녹화가 중지되었습니다.');
+            }
+        }
+
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                await startRecording();
+            }
+        }
+
+        function updateRecordingUI() {
+            const indicator = document.getElementById('rec-indicator');
+            const statusText = document.getElementById('rec-status');
+
+            if (isRecording) {
+                indicator.classList.remove('inactive');
+                statusText.textContent = 'REC 녹화 중';
+            } else {
+                indicator.classList.add('inactive');
+                statusText.textContent = '녹화 대기';
+            }
+        }
+
+        function downloadRecording() {
+            if (recordedChunks.length === 0) {
+                alert('녹화된 영상이 없습니다.');
+                return;
+            }
+
+            // Blob 생성
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+
+            // 다운로드 링크 생성
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `추첨녹화_${formatDateForFilename(new Date())}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // URL 해제
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+
+            addLog('녹화 영상을 다운로드했습니다.');
+        }
+
+        // 10. 추첨 시작 시 자동 녹화
+        async function startDrawWithRecording() {
+            // 녹화가 되지 않고 있다면 자동으로 시작
+            if (!isRecording) {
+                addLog('추첨과 함께 자동으로 녹화를 시작합니다...');
+                await startRecording();
+
+                // 녹화가 시작될 시간 대기 (500ms)
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            // 기존 추첨 로직 실행
+            startDraw();
         }
     </script>
 </body>
