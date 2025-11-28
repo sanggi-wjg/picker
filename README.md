@@ -2,10 +2,7 @@
 
 ## 📹 데모
 
-<video width="1200" controls>
-  <source src="https://github.com/sanggi-wjg/picker/blob/main/.data/demo.webm" type="video/webm">
-  브라우저가 video 태그를 지원하지 않습니다.
-</video>
+![데모](.images/demo.gif)
 
 
 ## 🚀 사용 방법
