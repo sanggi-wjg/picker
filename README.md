@@ -3,7 +3,7 @@
 ## 📹 데모
 
 <video width="1200" controls>
-  <source src=".images/demo.webm" type="video/webm">
+  <source src="https://github.com/sanggi-wjg/picker/blob/main/.data/demo.webm" type="video/webm">
   브라우저가 video 태그를 지원하지 않습니다.
 </video>
 
@@ -26,12 +26,13 @@ id,name,mobileNumber
 ### 2. 파일 업로드
 
 1. 브라우저에서 `picker.html` 파일을 엽니다
-2. "데이터 파일 로드" 버튼을 클릭하여 CSV 파일을 업로드합니다
-3. 데이터가 로드되면 SHA-256 해시값이 자동으로 생성됩니다
+2. 화면 우상단에 `녹화대기` 버튼을 클릭합니다.
+3. "데이터 파일 로드" 버튼을 클릭하여 CSV 파일을 업로드합니다
+4. 데이터가 로드되면 SHA-256 해시값이 자동으로 생성됩니다
 
 ### 3. 추첨 진행
 
-1. "추첨 시작 (자동 녹화)" 버튼을 클릭합니다
+1. "추첨 시작" 버튼을 클릭합니다
 2. 화면 녹화 권한을 허용합니다
 3. 슬롯 머신 애니메이션이 시작되고 당첨자가 순차적으로 공개됩니다
 

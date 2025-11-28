@@ -380,7 +380,7 @@
             </div>
 
             <div class="control-group">
-                <button id="start-btn" onclick="startDrawWithRecording()" disabled>추첨 시작 (자동 녹화)</button>
+                <button id="start-btn" onclick="startDrawWithRecording()" disabled>추첨 시작</button>
                 <button id="download-btn" class="download-btn" onclick="downloadResults()" disabled>결과 다운로드</button>
                 <button id="download-video-btn" class="download-btn download-video-btn" onclick="downloadRecording()" disabled>녹화본 다운로드</button>
             </div>
@@ -1000,12 +1000,14 @@
         // 10. 추첨 시작 시 자동 녹화
         async function startDrawWithRecording() {
             // 녹화가 되지 않고 있다면 자동으로 시작
-            if (!isRecording) {
-                addLog('추첨과 함께 자동으로 녹화를 시작합니다...');
-                await startRecording();
+            if (!isRecording) {              
+                alert("녹화를 먼저 시작해주세요.")
+                return
+                // addLog('추첨과 함께 자동으로 녹화를 시작합니다...');
+                // await startRecording();
 
-                // 녹화가 시작될 시간 대기 (500ms)
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // // 녹화가 시작될 시간 대기 (500ms)
+                // await new Promise(resolve => setTimeout(resolve, 500));
             }
 
             // 기존 추첨 로직 실행
